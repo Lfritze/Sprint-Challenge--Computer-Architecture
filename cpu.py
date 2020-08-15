@@ -33,13 +33,13 @@ class CPU:
             LDI : self.LDI,
             MUL : self.MUL,
             ADD : self.ADD,
-            SUB: self.SUB
+            SUB : self.SUB,
             PUSH : self.PUSH,
             POP : self.POP,
             CALL : self.CALL,
             RET : self.RET,
             CMP : self.CMP,
-            JMP : self.JMP,
+            JMP : self.JMP
         }
 
     def load(self):
@@ -146,15 +146,15 @@ class CPU:
         subroutine_addr = self.ram[self.reg[SP]]
         self.reg[SP] += 1
         self.pc = subroutine_addr
-    
+
     def CMP(self, reg_a, reg_b):
         reg_num1 = self.reg[reg_a]
         reg_num2 = self.reg[reg_b]
         self.alu("CMP", reg_num1, reg_num2)
-    
+
     def JMP(self, reg_a, reg_b):
         self.pc = self.reg[reg_a]
-
+        
     def run(self):
         while self.running:
             ir = self.ram_read(self.pc)
