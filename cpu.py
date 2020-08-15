@@ -1,7 +1,6 @@
 """CPU functionality."""
 
 import sys
-# Constants
 
 LDI = 0b10000010
 HLT = 0b00000001
@@ -17,24 +16,42 @@ ADD = 0b10100000
 
 class CPU:
     """Main CPU class."""
-    ## 1 constructed new CPU
     def __init__(self):
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.flag_reg = [0] * 8
         self.pc = 0
         self.running = True
+        self.branch_table = {
+            NOP : self.NOP,
+            HLT : self.HLT,
+            PRN : self.PRN,
+            LDI : self.LDI,
+            MUL : self.MUL,
+            ADD : self.ADD,
+            SUB: self.SUB
+            PUSH : self.PUSH,
+            POP : self.POP,
+            CALL : self.CALL,
+            RET : self.RET
+            CMP : self.CMP
+        }
 
     def load(self):
         filename = sys.argv[1]
+        address = 0
 
         with open(filename) as f:
-            for address, line in enumerate(f):
-                line = line.split('#')
+            for line in f:
+                line = line.split('#')[0].strip()
+                if line == '':
+                    continue
                 try:
-                    v = int(line[0], 2)
+                    v = int(line, 2)
                 except ValueError:
                     continue
                 self.ram_write(address, v)
+                address += 1
 
 
     def alu(self, op, reg_a, reg_b):
@@ -44,6 +61,13 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == "CMP":
+            if reg_a == reg_b:
+                self.flag_reg[EQ] = 0b00000001
+            else:
+                self.flag_reg[EQ] = 0b00000000
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -67,92 +91,72 @@ class CPU:
 
         print()
 
-    def LDI(self):
-        reg_num = self.ram_read(self.pc + 1)
-        value = self.ram_read(self.pc + 2)
-        self.reg[reg_num] = value
-        self.pc += 3
+    def LDI(self, reg_a, reg_b):
+        self.reg[reg_a] = reg_b
 
-    def HLT(self):
+    def HLT(self, reg_a, reg_b):
         self.running = False
     
-    def PRN(self):
-        reg_num = self.ram_read(self.pc + 1)
-        print(self.reg[reg_num])
-        self.pc += 2
+    def PRN(self, reg_a, reg_b):
+        print(self.reg[reg_a])
     
-    def MUL(self):
-        reg_num1 = self.ram_read(self.pc + 1)
-        reg_num2 = self.ram_read(self.pc + 2)
-        self.alu("MUL", reg_num1, reg_num2)
-        self.pc += 3
+    def MUL(self, reg_a, reg_b):
+        self.alu("MUL", reg_a, reg_b)
 
-    def ADD(self):
-        reg_num1 = self.ram_read(self.pc + 1)
-        reg_num2 = self.ram_read(self.pc + 2)
-        self.alu("ADD", reg_num1, reg_num2)
-        self.pc += 3
+    def SUB(self, reg_a, reg_b):
+        self.alu("SUB", reg_a, reg_b)
 
-    def NOP(self):
-        self.pc += 1
+    def ADD(self, reg_a, reg_b):
+        self.alu("ADD", reg_a, reg_b)
 
-    def PUSH(self):
-        reg_num = self.ram[self.pc + 1]
+    def NOP(self, reg_a, reg_b):
+        pass
+
+    def PUSH(self, reg_a, reg_b):
+        reg_num = self.ram[reg_a]
         value = self.reg[reg_num]
         self.reg[SP] -= 1
         top_of_stack_add = self.reg[SP]
         self.ram[top_of_stack_add] = value
-        self.pc += 2
 
-    def POP(self):
+    def POP(self, reg_a, reg_b):
         top_of_stack_add = self.reg[SP]
         value = self.ram[top_of_stack_add]
-        reg_num = self.ram[self.pc + 1]
+        reg_num = self.ram[reg_a]
         self.reg[reg_num] = value
         self.reg[SP] += 1
-        self.pc += 2
 
-    def CALL(self):
-        return_addr = self.pc + 2
+    def CALL(self, reg_a, reg_b):
+        return_addr = reg_b
 
         self.reg[SP] -= 1
         self.ram[self.reg[SP]] = return_addr
 
-        reg_num = self.ram[self.pc + 1]
+        reg_num = self.ram[reg_a]
         subroutine_addr = self.reg[reg_num]
 
         self.pc = subroutine_addr
 
-    def RET(self):
+    def RET(self, reg_a, reg_b):
         subroutine_addr = self.ram[self.reg[SP]]
         self.reg[SP] += 1
         self.pc = subroutine_addr
-        
-    def call_fun(self, n):
-        branch_table = {
-            NOP : self.NOP,
-            HLT : self.HLT,
-            PRN : self.PRN,
-            LDI : self.LDI,
-            MUL : self.MUL,
-            ADD : self.ADD,
-            PUSH : self.PUSH,
-            POP : self.POP,
-            CALL : self.CALL,
-            RET : self.RET
-        }
-
-        f = branch_table[n]
-        if branch_table.get(n) is not None:
-            f()
-        else:
-            print(f'Unknown instruction {n} at address {self.pc}')
-            sys.exit(1)
+    
+    def CMP(self, reg_a, reg_b):
+        reg_num1 = self.reg[reg_a]
+        reg_num2 = self.reg[reg_b]
+        self.alu("CMP", reg_num1, reg_num2)
 
     def run(self):
         while self.running:
             ir = self.ram_read(self.pc)
-            self.call_fun(ir)
+            pc_flag = (ir & 0b00010000) >> 4
+            reg_num1 = self.ram[self.pc +1]
+            reg_num2 = self.ram[self.pc + 2]
+            self.branch_table[ir](reg_num1, reg_num2)
+            if pc_flag == 0:
+                move = int((ir & 0b11000000) >>6)
+                self.pc += move + 1
             
 
     def ram_read(self, address):
