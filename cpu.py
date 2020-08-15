@@ -37,8 +37,9 @@ class CPU:
             PUSH : self.PUSH,
             POP : self.POP,
             CALL : self.CALL,
-            RET : self.RET
-            CMP : self.CMP
+            RET : self.RET,
+            CMP : self.CMP,
+            JMP : self.JMP,
         }
 
     def load(self):
@@ -150,6 +151,9 @@ class CPU:
         reg_num1 = self.reg[reg_a]
         reg_num2 = self.reg[reg_b]
         self.alu("CMP", reg_num1, reg_num2)
+    
+    def JMP(self, reg_a, reg_b):
+        self.pc = self.reg[reg_a]
 
     def run(self):
         while self.running:
